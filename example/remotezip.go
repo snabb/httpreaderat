@@ -1,8 +1,7 @@
 //
-// This example outputs a file from a remote zip file without downloading
-// the whole zip archive.
+// This example outputs a single file from a remote zip file without
+// downloading the whole archive.
 //
-
 package main
 
 import (
