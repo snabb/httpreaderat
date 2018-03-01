@@ -1,3 +1,4 @@
+// Package htreaderat implements io.ReaderAt for http URLs.
 package htreaderat
 
 import (
