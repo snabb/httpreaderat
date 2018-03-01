@@ -54,33 +54,43 @@ func (ra *ReaderAt) setAndValidate(resp *http.Response) (ok bool) {
 
 var ErrValidationFailed = errors.New("file validation error")
 
-func (ra *ReaderAt) Size() (int64, error) {
+func (ra *ReaderAt) setMeta() error {
 	if ra.metaSet == false {
 		req, err := http.NewRequest("HEAD", ra.url, nil)
 		if err != nil {
-			return -1, errors.Wrap(err, "error forming http request")
+			return errors.Wrap(err, "error forming http request")
 		}
 		if ra.ctx != nil {
 			req = req.WithContext(ra.ctx)
 		}
 		resp, err := ra.htc.Do(req)
 		if err != nil {
-			return -1, errors.Wrap(err, "http request error")
+			return errors.Wrap(err, "http request error")
 		}
 		resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			return -1, errors.Errorf("http request error: %s", resp.Status)
+			return errors.Errorf("http request error: %s", resp.Status)
 		}
 		ok := ra.setAndValidate(resp)
 		if !ok {
-			return -1, ErrValidationFailed
+			return ErrValidationFailed
 		}
 	}
-	return ra.size, nil
+	return nil
+}
+
+func (ra *ReaderAt) Size() (int64, error) {
+	err := ra.setMeta()
+	return ra.size, err
+}
+
+func (ra *ReaderAt) ContentType() (string, error) {
+	err := ra.setMeta()
+	return ra.contentType, err
 }
 
 func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
-	fmt.Printf("readat off=%d len=%d\n", off, len(p))
+	// fmt.Printf("readat off=%d len=%d\n", off, len(p))
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -131,12 +141,6 @@ func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	return n, err
 }
 
-type meta struct {
-	size         int64
-	lastModified string
-	etag         string
-}
-
 var errParse = errors.New("content-range parse error")
 
 // Content-Range: bytes 42-1233/1234
@@ -179,9 +183,17 @@ func parseContentRange(str string) (first, last, length int64, err error) {
 	return first, last, length, nil
 }
 
+type meta struct {
+	size         int64
+	lastModified string
+	etag         string
+	contentType  string
+}
+
 func getMeta(resp *http.Response) (meta meta) {
 	meta.lastModified = resp.Header.Get("Last-Modified")
 	meta.etag = resp.Header.Get("ETag")
+	meta.contentType = resp.Header.Get("Content-Type")
 
 	switch resp.StatusCode {
 	case http.StatusOK:
