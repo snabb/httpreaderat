@@ -11,8 +11,8 @@ import (
 )
 
 type ReaderAt struct {
-	htc *http.Client
-	req *http.Request
+	client *http.Client
+	req    *http.Request
 
 	metaSet bool
 	meta
@@ -28,17 +28,17 @@ var ErrValidationFailed = errors.New("validation failed")
 // http.DefaultClient is used. The supplied http.Request is used as a
 // prototype for requests made by this package. Only "GET" HTTP method
 // may be used.
-func New(htc *http.Client, req *http.Request) (ra *ReaderAt, err error) {
-	if htc == nil {
-		htc = http.DefaultClient
+func New(client *http.Client, req *http.Request) (ra *ReaderAt, err error) {
+	if client == nil {
+		client = http.DefaultClient
 	}
 	if req.Method != "GET" {
 		return nil, errors.New("only GET HTTP method allowed")
 	}
 
 	return &ReaderAt{
-		htc: htc,
-		req: req,
+		client: client,
+		req:    req,
 	}, nil
 }
 
@@ -72,7 +72,7 @@ func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	reqRange := fmt.Sprintf("bytes=%d-%d", reqFirst, reqLast)
 	req.Header.Set("Range", reqRange)
 
-	resp, err := ra.htc.Do(req)
+	resp, err := ra.client.Do(req)
 	if err != nil {
 		return 0, errors.Wrap(err, "http request error")
 	}
@@ -216,7 +216,7 @@ func (ra *ReaderAt) setMeta() error {
 		req := ra.copyReq()
 		req.Method = "HEAD"
 
-		resp, err := ra.htc.Do(req)
+		resp, err := ra.client.Do(req)
 		if err != nil {
 			return errors.Wrap(err, "http request error")
 		}
