@@ -1,4 +1,4 @@
-// Package htreaderat implements io.ReaderAt for HTTP requests.
+// Package htreaderat implements io.ReaderAt for making HTTP Range Requests.
 //
 // It can be used for example with "archive/zip" package in Go standard
 // library. Together they can be used to access remote (HTTP accessible)

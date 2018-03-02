@@ -3,7 +3,7 @@ htreaderat
 
 [![GoDoc](https://godoc.org/github.com/snabb/htreaderat?status.svg)](https://godoc.org/github.com/snabb/htreaderat)
 
-The Go package htreaderat implements io.ReaderAt for HTTP requests.
+Go package htreaderat implements io.ReaderAt for making HTTP Range Requests.
 
 It can be used for example with "archive/zip" package in Go standard
 library. Together they can be used to access remote (HTTP accessible)
