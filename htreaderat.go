@@ -2,7 +2,6 @@
 package htreaderat
 
 import (
-	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"io"
@@ -13,8 +12,7 @@ import (
 
 type ReaderAt struct {
 	htc *http.Client
-	ctx context.Context
-	url string
+	req *http.Request
 
 	metaSet bool
 	meta
@@ -22,16 +20,37 @@ type ReaderAt struct {
 
 var _ io.ReaderAt = (*ReaderAt)(nil)
 
-func New(htc *http.Client, url string, ctx context.Context) (ra *ReaderAt) {
+func New(htc *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 	if htc == nil {
 		htc = http.DefaultClient
+	}
+	if req.Method != "GET" {
+		return nil, errors.New("only GET HTTP method allowed")
 	}
 
 	return &ReaderAt{
 		htc: htc,
-		ctx: ctx,
-		url: url,
+		req: req,
+	}, nil
+}
+
+func cloneHeader(h http.Header) http.Header {
+	h2 := make(http.Header, len(h))
+	for k, vv := range h {
+		vv2 := make([]string, len(vv))
+		copy(vv2, vv)
+		h2[k] = vv2
 	}
+	return h2
+}
+
+func (ra *ReaderAt) copyReq() *http.Request {
+	out := *ra.req
+	out.Body = nil
+	out.ContentLength = 0
+	out.Header = cloneHeader(ra.req.Header)
+
+	return &out
 }
 
 func etagStrongMatch(a, b string) bool {
@@ -52,17 +71,13 @@ func (ra *ReaderAt) setAndValidate(resp *http.Response) (ok bool) {
 		etagStrongMatch(ra.etag, m.etag)
 }
 
-var ErrValidationFailed = errors.New("file validation error")
+var ErrValidationFailed = errors.New("validation failed")
 
 func (ra *ReaderAt) setMeta() error {
 	if ra.metaSet == false {
-		req, err := http.NewRequest("HEAD", ra.url, nil)
-		if err != nil {
-			return errors.Wrap(err, "error forming http request")
-		}
-		if ra.ctx != nil {
-			req = req.WithContext(ra.ctx)
-		}
+		req := ra.copyReq()
+		req.Method = "HEAD"
+
 		resp, err := ra.htc.Do(req)
 		if err != nil {
 			return errors.Wrap(err, "http request error")
@@ -94,13 +109,8 @@ func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
-	req, err := http.NewRequest("GET", ra.url, nil)
-	if err != nil {
-		return 0, errors.Wrap(err, "error forming http request")
-	}
-	if ra.ctx != nil {
-		req = req.WithContext(ra.ctx)
-	}
+	req := ra.copyReq()
+
 	reqFirst := off
 	reqLast := off + int64(len(p)) - 1
 	reqRange := fmt.Sprintf("bytes=%d-%d", reqFirst, reqLast)
