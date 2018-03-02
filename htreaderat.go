@@ -20,8 +20,14 @@ type ReaderAt struct {
 
 var _ io.ReaderAt = (*ReaderAt)(nil)
 
+// ErrValidationFailed error is returned in case the file changes under
+// our feet while we are accessing it.
 var ErrValidationFailed = errors.New("validation failed")
 
+// New creates a new ReaderAt. If nil is passed as http.Client, then
+// http.DefaultClient is used. The supplied http.Request is used as a
+// prototype for requests made by this package. Only "GET" HTTP method
+// may be used.
 func New(htc *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 	if htc == nil {
 		htc = http.DefaultClient
@@ -36,16 +42,24 @@ func New(htc *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 	}, nil
 }
 
+// Size returns the size of the file.
 func (ra *ReaderAt) Size() (int64, error) {
 	err := ra.setMeta()
 	return ra.size, err
 }
 
+// ContentType returns "Content-Type" header contents.
 func (ra *ReaderAt) ContentType() (string, error) {
 	err := ra.setMeta()
 	return ra.contentType, err
 }
 
+// ReadAt reads len(p) bytes into p starting at offset off in the
+// remote file. It returns the number of bytes read (0 <= n <= len(p))
+// and any error encountered.
+//
+// When ReadAt returns n < len(p), it returns a non-nil error explaining
+// why more bytes were not returned.
 func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	// fmt.Printf("readat off=%d len=%d\n", off, len(p))
 	if len(p) == 0 {
@@ -95,11 +109,12 @@ func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 
 var errParse = errors.New("content-range parse error")
 
-// Content-Range: bytes 42-1233/1234
-// Content-Range: bytes 42-1233/*
-// Content-Range: bytes */1234
 func parseContentRange(str string) (first, last, length int64, err error) {
 	first, last, length = -1, -1, -1
+
+	// Content-Range: bytes 42-1233/1234
+	// Content-Range: bytes 42-1233/*
+	// Content-Range: bytes */1234
 
 	strs := strings.Split(str, " ")
 	if len(strs) != 2 || strs[0] != "bytes" {
