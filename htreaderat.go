@@ -1,7 +1,11 @@
-// Package htreaderat implements io.ReaderAt for http URLs.
+// Package htreaderat implements io.ReaderAt for HTTP requests.
 //
-// HTTP Range Requests (see RFC 7233) are used for retrieving the requested
-// byte range. Currently error is returned if the remote server does not
+// It can be used for example with "archive/zip" package in Go standard
+// library. Together they can be used to access remote (HTTP accessible)
+// ZIP files without needing to download the whole archive.
+//
+// HTTP Range Requests (see RFC 7233) are used to retrieve the requested
+// byte range. Currently an error is returned if a remote server does not
 // support Range Requests.
 package htreaderat
 
