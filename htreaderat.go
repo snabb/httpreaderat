@@ -239,26 +239,27 @@ func (ra *ReaderAt) setAndValidate(resp *http.Response) (err error) {
 func (ra *ReaderAt) setMeta() error {
 	ra.metaMutex.Lock()
 
-	if ra.metaSet == false {
+	if ra.metaSet {
 		ra.metaMutex.Unlock()
+		return nil
+	}
 
-		req := ra.copyReq()
-		req.Method = "HEAD"
+	ra.metaMutex.Unlock()
 
-		resp, err := ra.client.Do(req)
-		if err != nil {
-			return errors.Wrap(err, "http request error")
-		}
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return errors.Errorf("http request error: %s", resp.Status)
-		}
-		err = ra.setAndValidate(resp)
-		if err != nil {
-			return err
-		}
-	} else {
-		ra.metaMutex.Unlock()
+	req := ra.copyReq()
+	req.Method = "HEAD"
+
+	resp, err := ra.client.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "http request error")
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("http request error: %s", resp.Status)
+	}
+	err = ra.setAndValidate(resp)
+	if err != nil {
+		return err
 	}
 	return nil
 }
