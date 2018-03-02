@@ -2,7 +2,7 @@
 //
 // It can be used for example with "archive/zip" package in Go standard
 // library. Together they can be used to access remote (HTTP accessible)
-// ZIP files without needing to download the whole archive.
+// ZIP archives without needing to download the whole archive file.
 //
 // HTTP Range Requests (see RFC 7233) are used to retrieve the requested
 // byte range. Currently an error is returned if a remote server does not
