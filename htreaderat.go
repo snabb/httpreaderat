@@ -1,4 +1,8 @@
 // Package htreaderat implements io.ReaderAt for http URLs.
+//
+// HTTP Range Requests (see RFC 7233) are used for retrieving the requested
+// byte range. Currently error is returned if the remote server does not
+// support Range Requests.
 package htreaderat
 
 import (
@@ -10,6 +14,8 @@ import (
 	"strings"
 )
 
+// ReaderAt is io.ReaderAt implementation. New instances must be created
+// with the New() function.
 type ReaderAt struct {
 	client *http.Client
 	req    *http.Request
@@ -27,7 +33,7 @@ var ErrValidationFailed = errors.New("validation failed")
 // New creates a new ReaderAt. If nil is passed as http.Client, then
 // http.DefaultClient is used. The supplied http.Request is used as a
 // prototype for requests made by this package. Only "GET" HTTP method
-// may be used.
+// is allowed.
 func New(client *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 	if client == nil {
 		client = http.DefaultClient
@@ -85,7 +91,7 @@ func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 		return 0, ErrValidationFailed
 	}
 	if resp.StatusCode == http.StatusOK {
-		return 0, errors.New("received full response, fallback not implemented yet")
+		return 0, errors.New("server does not support range requests (fallback not implemented yet)")
 	}
 	contentRange := resp.Header.Get("Content-Range")
 	if contentRange == "" {
@@ -101,9 +107,13 @@ func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 			reqFirst, reqLast, first, last)
 	}
 	if resp.ContentLength != last-first+1 {
-		return 0, errors.New("wrong content-length in http response")
+		return 0, errors.New("content-length mismatch in http response")
 	}
 	n, err = io.ReadFull(resp.Body, p)
+
+	if err == io.ErrUnexpectedEOF {
+		err = io.EOF
+	}
 	return n, err
 }
 
