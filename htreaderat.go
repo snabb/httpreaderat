@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // ReaderAt is io.ReaderAt implementation. New instances must be created
@@ -24,9 +25,9 @@ type ReaderAt struct {
 	client *http.Client
 	req    *http.Request
 
-	// TODO: need to add locking to make it safe for concurrent use
-	metaSet bool
-	meta
+	metaMutex sync.Mutex
+	metaSet   bool
+	meta      meta
 }
 
 var _ io.ReaderAt = (*ReaderAt)(nil)
@@ -56,19 +57,19 @@ func New(client *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 // ContentType returns "Content-Type" header contents.
 func (ra *ReaderAt) ContentType() (string, error) {
 	err := ra.setMeta()
-	return ra.contentType, err
+	return ra.meta.contentType, err
 }
 
 // LastModified returns "Last-Modified" header contents.
 func (ra *ReaderAt) LastModified() (string, error) {
 	err := ra.setMeta()
-	return ra.lastModified, err
+	return ra.meta.lastModified, err
 }
 
 // Size returns the size of the file.
 func (ra *ReaderAt) Size() (int64, error) {
 	err := ra.setMeta()
-	return ra.size, err
+	return ra.meta.size, err
 }
 
 // ReadAt reads len(p) bytes into p starting at offset off in the
@@ -98,8 +99,9 @@ func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		return 0, errors.Errorf("http request error: %s", resp.Status)
 	}
-	if !ra.setAndValidate(resp) {
-		return 0, ErrValidationFailed
+	err = ra.setAndValidate(resp)
+	if err != nil {
+		return 0, err
 	}
 	if resp.StatusCode == http.StatusOK {
 		return 0, errors.New("server does not support range requests (fallback not implemented yet)")
@@ -215,22 +217,31 @@ func (ra *ReaderAt) copyReq() *http.Request {
 	return &out
 }
 
-func (ra *ReaderAt) setAndValidate(resp *http.Response) (ok bool) {
+func (ra *ReaderAt) setAndValidate(resp *http.Response) (err error) {
 	m := getMeta(resp)
+
+	ra.metaMutex.Lock()
+	defer ra.metaMutex.Unlock()
 
 	if ra.metaSet == false {
 		ra.meta = m
 		ra.metaSet = true
-		return true
+		return nil
 	}
-
-	return ra.size == m.size &&
-		ra.lastModified == m.lastModified &&
-		ra.etag == m.etag
+	if ra.meta.size == m.size &&
+		ra.meta.lastModified == m.lastModified &&
+		ra.meta.etag == m.etag {
+		return nil
+	}
+	return ErrValidationFailed
 }
 
 func (ra *ReaderAt) setMeta() error {
+	ra.metaMutex.Lock()
+
 	if ra.metaSet == false {
+		ra.metaMutex.Unlock()
+
 		req := ra.copyReq()
 		req.Method = "HEAD"
 
@@ -242,10 +253,12 @@ func (ra *ReaderAt) setMeta() error {
 		if resp.StatusCode != http.StatusOK {
 			return errors.Errorf("http request error: %s", resp.Status)
 		}
-		ok := ra.setAndValidate(resp)
-		if !ok {
-			return ErrValidationFailed
+		err = ra.setAndValidate(resp)
+		if err != nil {
+			return err
 		}
+	} else {
+		ra.metaMutex.Unlock()
 	}
 	return nil
 }
