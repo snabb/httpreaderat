@@ -52,16 +52,22 @@ func New(client *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 	}, nil
 }
 
-// Size returns the size of the file.
-func (ra *ReaderAt) Size() (int64, error) {
-	err := ra.setMeta()
-	return ra.size, err
-}
-
 // ContentType returns "Content-Type" header contents.
 func (ra *ReaderAt) ContentType() (string, error) {
 	err := ra.setMeta()
 	return ra.contentType, err
+}
+
+// LastModified returns "Last-Modified" header contents.
+func (ra *ReaderAt) LastModified() (string, error) {
+	err := ra.setMeta()
+	return ra.lastModified, err
+}
+
+// Size returns the size of the file.
+func (ra *ReaderAt) Size() (int64, error) {
+	err := ra.setMeta()
+	return ra.size, err
 }
 
 // ReadAt reads len(p) bytes into p starting at offset off in the
@@ -165,6 +171,7 @@ func parseContentRange(str string) (first, last, length int64, err error) {
 }
 
 type meta struct {
+	// XXX should add locking to make it thread safe?
 	size         int64
 	lastModified string
 	etag         string
@@ -207,10 +214,6 @@ func (ra *ReaderAt) copyReq() *http.Request {
 	return &out
 }
 
-func etagStrongMatch(a, b string) bool {
-	return a == b && a != "" && a[0] == '"'
-}
-
 func (ra *ReaderAt) setAndValidate(resp *http.Response) (ok bool) {
 	m := getMeta(resp)
 
@@ -222,7 +225,7 @@ func (ra *ReaderAt) setAndValidate(resp *http.Response) (ok bool) {
 
 	return ra.size == m.size &&
 		ra.lastModified == m.lastModified &&
-		etagStrongMatch(ra.etag, m.etag)
+		ra.etag == m.etag
 }
 
 func (ra *ReaderAt) setMeta() error {
