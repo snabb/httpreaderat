@@ -20,6 +20,8 @@ type ReaderAt struct {
 
 var _ io.ReaderAt = (*ReaderAt)(nil)
 
+var ErrValidationFailed = errors.New("validation failed")
+
 func New(htc *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 	if htc == nil {
 		htc = http.DefaultClient
@@ -32,66 +34,6 @@ func New(htc *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 		htc: htc,
 		req: req,
 	}, nil
-}
-
-func cloneHeader(h http.Header) http.Header {
-	h2 := make(http.Header, len(h))
-	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
-	}
-	return h2
-}
-
-func (ra *ReaderAt) copyReq() *http.Request {
-	out := *ra.req
-	out.Body = nil
-	out.ContentLength = 0
-	out.Header = cloneHeader(ra.req.Header)
-
-	return &out
-}
-
-func etagStrongMatch(a, b string) bool {
-	return a == b && a != "" && a[0] == '"'
-}
-
-func (ra *ReaderAt) setAndValidate(resp *http.Response) (ok bool) {
-	m := getMeta(resp)
-
-	if ra.metaSet == false {
-		ra.meta = m
-		ra.metaSet = true
-		return true
-	}
-
-	return ra.size == m.size &&
-		ra.lastModified == m.lastModified &&
-		etagStrongMatch(ra.etag, m.etag)
-}
-
-var ErrValidationFailed = errors.New("validation failed")
-
-func (ra *ReaderAt) setMeta() error {
-	if ra.metaSet == false {
-		req := ra.copyReq()
-		req.Method = "HEAD"
-
-		resp, err := ra.htc.Do(req)
-		if err != nil {
-			return errors.Wrap(err, "http request error")
-		}
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return errors.Errorf("http request error: %s", resp.Status)
-		}
-		ok := ra.setAndValidate(resp)
-		if !ok {
-			return ErrValidationFailed
-		}
-	}
-	return nil
 }
 
 func (ra *ReaderAt) Size() (int64, error) {
@@ -215,4 +157,62 @@ func getMeta(resp *http.Response) (meta meta) {
 		}
 	}
 	return meta
+}
+
+func cloneHeader(h http.Header) http.Header {
+	h2 := make(http.Header, len(h))
+	for k, vv := range h {
+		vv2 := make([]string, len(vv))
+		copy(vv2, vv)
+		h2[k] = vv2
+	}
+	return h2
+}
+
+func (ra *ReaderAt) copyReq() *http.Request {
+	out := *ra.req
+	out.Body = nil
+	out.ContentLength = 0
+	out.Header = cloneHeader(ra.req.Header)
+
+	return &out
+}
+
+func etagStrongMatch(a, b string) bool {
+	return a == b && a != "" && a[0] == '"'
+}
+
+func (ra *ReaderAt) setAndValidate(resp *http.Response) (ok bool) {
+	m := getMeta(resp)
+
+	if ra.metaSet == false {
+		ra.meta = m
+		ra.metaSet = true
+		return true
+	}
+
+	return ra.size == m.size &&
+		ra.lastModified == m.lastModified &&
+		etagStrongMatch(ra.etag, m.etag)
+}
+
+func (ra *ReaderAt) setMeta() error {
+	if ra.metaSet == false {
+		req := ra.copyReq()
+		req.Method = "HEAD"
+
+		resp, err := ra.htc.Do(req)
+		if err != nil {
+			return errors.Wrap(err, "http request error")
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return errors.Errorf("http request error: %s", resp.Status)
+		}
+		ok := ra.setAndValidate(resp)
+		if !ok {
+			return ErrValidationFailed
+		}
+	}
+	return nil
 }
