@@ -24,20 +24,21 @@ type ReaderAt struct {
 	client *http.Client
 	req    *http.Request
 
+	// TODO: need to add locking to make it safe for concurrent use
 	metaSet bool
 	meta
 }
 
 var _ io.ReaderAt = (*ReaderAt)(nil)
 
-// ErrValidationFailed error is returned in case the file changes under
-// our feet while we are accessing it.
+// ErrValidationFailed error is returned if the file changed under
+// our feet.
 var ErrValidationFailed = errors.New("validation failed")
 
 // New creates a new ReaderAt. If nil is passed as http.Client, then
 // http.DefaultClient is used. The supplied http.Request is used as a
-// prototype for requests made by this package. Only "GET" HTTP method
-// is allowed.
+// prototype for requests made by this package. It is copied before
+// making the actual request. Only "GET" HTTP method is allowed.
 func New(client *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 	if client == nil {
 		client = http.DefaultClient
@@ -135,6 +136,7 @@ func parseContentRange(str string) (first, last, length int64, err error) {
 	// Content-Range: bytes 42-1233/1234
 	// Content-Range: bytes 42-1233/*
 	// Content-Range: bytes */1234
+	// (Maybe I should have used regexp here instead of Splitting... :)
 
 	strs := strings.Split(str, " ")
 	if len(strs) != 2 || strs[0] != "bytes" {
@@ -171,7 +173,6 @@ func parseContentRange(str string) (first, last, length int64, err error) {
 }
 
 type meta struct {
-	// XXX should add locking to make it thread safe?
 	size         int64
 	lastModified string
 	etag         string
