@@ -20,7 +20,7 @@ import (
 )
 
 // ReaderAt is io.ReaderAt implementation. New instances must be created
-// with the New() function.
+// with the New() function. It is safe for concurrent use.
 type ReaderAt struct {
 	client *http.Client
 	req    *http.Request
