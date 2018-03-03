@@ -35,7 +35,7 @@ var ErrValidationFailed = errors.New("validation failed")
 // New creates a new ReaderAt. If nil is passed as http.Client, then
 // http.DefaultClient is used. The supplied http.Request is used as a
 // prototype for requests. It is copied before making the actual request.
-// Only "GET" HTTP method is allowed.
+// It is an error to specify any other HTTP method than "GET".
 func New(client *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 	if client == nil {
 		client = http.DefaultClient
