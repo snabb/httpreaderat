@@ -39,14 +39,14 @@ import (
 
 func main() {
 	req, _ := http.NewRequest("GET", "https://dl.google.com/go/go1.10.windows-amd64.zip", nil)
-	htrdr, _ := htreaderat.New(nil, req)
-	bhtrdr := bufra.NewBufReaderAt(htrdr, 1024*1024)
 
-	size, err := htrdr.Size()
+	htrdr, err := htreaderat.New(nil, req)
 	if err != nil {
 		panic(err)
 	}
-	zrdr, err := zip.NewReader(bhtrdr, size)
+	bhtrdr := bufra.NewBufReaderAt(htrdr, 1024*1024)
+
+	zrdr, err := zip.NewReader(bhtrdr, htrdr.Size())
 	if err != nil {
 		panic(err)
 	}
