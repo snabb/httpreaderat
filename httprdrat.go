@@ -1,4 +1,4 @@
-// Package htreaderat implements io.ReaderAt for making HTTP Range Requests.
+// Package httprdrat implements io.ReaderAt that makes HTTP Range Requests.
 //
 // It can be used for example with "archive/zip" package in Go standard
 // library. Together they can be used to access remote (HTTP accessible)
@@ -7,7 +7,7 @@
 // HTTP Range Requests (see RFC 7233) are used to retrieve the requested
 // byte range. Currently an error is returned if a remote server does not
 // support Range Requests.
-package htreaderat
+package httprdrat
 
 import (
 	"fmt"
@@ -18,32 +18,32 @@ import (
 	"strings"
 )
 
-// ReaderAt is io.ReaderAt implementation. New instances must be created
+// HTTPRdrAt is io.ReaderAt implementation. New instances must be created
 // with the New() function. It is safe for concurrent use.
-type ReaderAt struct {
+type HTTPRdrAt struct {
 	client *http.Client
 	req    *http.Request
 	meta   meta
 }
 
-var _ io.ReaderAt = (*ReaderAt)(nil)
+var _ io.ReaderAt = (*HTTPRdrAt)(nil)
 
 // ErrValidationFailed error is returned if the file changed under
 // our feet.
 var ErrValidationFailed = errors.New("validation failed")
 
-// New creates a new ReaderAt. If nil is passed as http.Client, then
+// New creates a new HTTPRdrAt. If nil is passed as http.Client, then
 // http.DefaultClient is used. The supplied http.Request is used as a
 // prototype for requests. It is copied before making the actual request.
 // It is an error to specify any other HTTP method than "GET".
-func New(client *http.Client, req *http.Request) (ra *ReaderAt, err error) {
+func New(client *http.Client, req *http.Request) (ra *HTTPRdrAt, err error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
 	if req.Method != "GET" {
 		return nil, errors.New("only GET HTTP method allowed")
 	}
-	ra = &ReaderAt{
+	ra = &HTTPRdrAt{
 		client: client,
 		req:    req,
 	}
@@ -55,17 +55,17 @@ func New(client *http.Client, req *http.Request) (ra *ReaderAt, err error) {
 }
 
 // ContentType returns "Content-Type" header contents.
-func (ra *ReaderAt) ContentType() string {
+func (ra *HTTPRdrAt) ContentType() string {
 	return ra.meta.contentType
 }
 
 // LastModified returns "Last-Modified" header contents.
-func (ra *ReaderAt) LastModified() string {
+func (ra *HTTPRdrAt) LastModified() string {
 	return ra.meta.lastModified
 }
 
 // Size returns the size of the file.
-func (ra *ReaderAt) Size() int64 {
+func (ra *HTTPRdrAt) Size() int64 {
 	return ra.meta.size
 }
 
@@ -75,7 +75,7 @@ func (ra *ReaderAt) Size() int64 {
 //
 // When ReadAt returns n < len(p), it returns a non-nil error explaining
 // why more bytes were not returned.
-func (ra *ReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
+func (ra *HTTPRdrAt) ReadAt(p []byte, off int64) (n int, err error) {
 	// fmt.Printf("readat off=%d len=%d\n", off, len(p))
 	if len(p) == 0 {
 		return 0, nil
@@ -205,7 +205,7 @@ func cloneHeader(h http.Header) http.Header {
 	return h2
 }
 
-func (ra *ReaderAt) copyReq() *http.Request {
+func (ra *HTTPRdrAt) copyReq() *http.Request {
 	out := *ra.req
 	out.Body = nil
 	out.ContentLength = 0
@@ -214,7 +214,7 @@ func (ra *ReaderAt) copyReq() *http.Request {
 	return &out
 }
 
-func (ra *ReaderAt) validate(resp *http.Response) (err error) {
+func (ra *HTTPRdrAt) validate(resp *http.Response) (err error) {
 	m := getMeta(resp)
 
 	if ra.meta.size != m.size ||
@@ -225,7 +225,7 @@ func (ra *ReaderAt) validate(resp *http.Response) (err error) {
 	return nil
 }
 
-func (ra *ReaderAt) setMeta() error {
+func (ra *HTTPRdrAt) setMeta() error {
 	req := ra.copyReq()
 	req.Method = "HEAD"
 
