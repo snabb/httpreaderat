@@ -24,6 +24,8 @@ func NewDefaultStore() Store {
 			NewStoreFile(), 1024*1024*1024, nil))
 }
 
+// StoreFile takes io.Reader and provides io.ReaderAt backed by
+// a temporary file.
 type StoreFile struct {
 	tmpfile *os.File
 	size    int64
@@ -74,6 +76,8 @@ func (s *StoreFile) Close() error {
 	return err
 }
 
+// StoreMemory takes io.Reader and provides io.ReaderAt backed by
+// a memory buffer.
 type StoreMemory struct {
 	buf bytes.Buffer
 }
@@ -104,6 +108,9 @@ func (s *StoreMemory) Close() error {
 	return nil
 }
 
+// LimitedStore stores to a primary store up to a size limit. If the
+// size limit is exceeded, a secondary store is used. If secondary store
+// is nil, error is returned if the size limit is exceeded.
 type LimitedStore struct {
 	s        Store
 	limit    int64
