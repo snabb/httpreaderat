@@ -37,6 +37,7 @@ func NewStoreFile() *StoreFile {
 	return &StoreFile{}
 }
 
+// Store the contents of r to a temporary file.
 func (s *StoreFile) ReadFrom(r io.Reader) (n int64, err error) {
 	if s.tmpfile != nil {
 		s.Close()
@@ -91,6 +92,7 @@ func NewStoreMemory() *StoreMemory {
 	return &StoreMemory{}
 }
 
+// Store the contents of r to a memory buffer.
 func (s *StoreMemory) ReadFrom(r io.Reader) (n int64, err error) {
 	s.buf.Reset()
 	return s.buf.ReadFrom(r)
@@ -133,6 +135,9 @@ func NewLimitedStore(primary Store, limit int64, secondary Store) *LimitedStore 
 	}
 }
 
+// Store the contents of r to the primary store. If the size limit is
+// reached, fall back to the secondary store or return ErrStoreLimit
+// if secondary store is nil.
 func (s *LimitedStore) ReadFrom(r io.Reader) (n int64, err error) {
 	if s.s != nil {
 		s.s.Close()
@@ -170,5 +175,7 @@ func (s *LimitedStore) Close() error {
 	if s.s == nil {
 		return nil
 	}
-	return s.s.Close()
+	err := s.s.Close()
+	s.s = nil
+	return err
 }
