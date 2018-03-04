@@ -1,6 +1,7 @@
 //
 // This example outputs a single file from a remote zip file without
-// downloading the whole archive.
+// downloading the whole archive. If the server does not support HTTP Range
+// Requests, the whole file is downloaded to a backing store as a fallback.
 //
 package main
 
@@ -16,7 +17,10 @@ import (
 func main() {
 	req, _ := http.NewRequest("GET", "https://dl.google.com/go/go1.10.windows-amd64.zip", nil)
 
-	htrdr, err := httprdrat.NewHTTPRdrAt(nil, req)
+	bs := httprdrat.NewDefaultBackingStore()
+	defer bs.Close()
+
+	htrdr, err := httprdrat.NewHTTPReaderAt(nil, req, bs)
 	if err != nil {
 		panic(err)
 	}

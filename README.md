@@ -20,7 +20,7 @@ small HTTP requests significantly. 1 MB is a good buffer size to use. See
 the example below for details.
 
 If you need io.ReadSeeker (with Read() and Seek() methods), you can wrap
-HTTPRdrAt with io.SectionReader.
+HTTPReaderAt with io.SectionReader.
 
 
 Example
@@ -43,7 +43,7 @@ import (
 func main() {
 	req, _ := http.NewRequest("GET", "https://dl.google.com/go/go1.10.windows-amd64.zip", nil)
 
-	htrdr, err := httprdrat.NewHTTPRdrAt(nil, req)
+	htrdr, err := httprdrat.NewHTTPReaderAt(nil, req, nil)
 	if err != nil {
 		panic(err)
 	}
