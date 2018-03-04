@@ -51,6 +51,9 @@ func (s *StoreFile) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (s *StoreFile) ReadAt(p []byte, off int64) (n int, err error) {
+	if s.tmpfile == nil {
+		return 0, nil
+	}
 	return s.tmpfile.ReadAt(p, off)
 }
 
@@ -112,56 +115,60 @@ func (s *StoreMemory) Close() error {
 // size limit is exceeded, a secondary store is used. If secondary store
 // is nil, error is returned if the size limit is exceeded.
 type LimitedStore struct {
-	s        Store
-	limit    int64
-	fallback Store
-	fellback bool
+	s         Store
+	primary   Store
+	limit     int64
+	secondary Store
 }
 
 var _ Store = (*LimitedStore)(nil)
 
-var ErrStoreLimit = errors.New("backing store limit reached")
+var ErrStoreLimit = errors.New("store size limit reached")
 
-func NewLimitedStore(s Store, limit int64, fallback Store) *LimitedStore {
+func NewLimitedStore(primary Store, limit int64, secondary Store) *LimitedStore {
 	return &LimitedStore{
-		s:        s,
-		limit:    limit,
-		fallback: fallback,
+		primary:   primary,
+		limit:     limit,
+		secondary: secondary,
 	}
 }
 
 func (s *LimitedStore) ReadFrom(r io.Reader) (n int64, err error) {
-	// XXX
-	if s.fellback == true {
-		return s.s.ReadFrom(r)
+	if s.s != nil {
+		s.s.Close()
 	}
+	s.s = s.primary
 
 	lr := io.LimitReader(r, s.limit)
 
-	n, err = s.s.ReadFrom(lr)
+	n, err = s.primary.ReadFrom(lr)
 	if n < s.limit {
-		s.limit -= n
 		return n, err
 	}
 
-	if s.fallback == nil {
+	if s.secondary == nil {
 		return n, ErrStoreLimit
 	}
 
-	srdr := io.NewSectionReader(s.s, 0, n)
-	n, err = s.fallback.ReadFrom(io.MultiReader(srdr, r))
+	s.s = s.secondary
+	srdr := io.NewSectionReader(s.primary, 0, n)
+	n, err = s.secondary.ReadFrom(io.MultiReader(srdr, r))
 
-	s.s.Close()
-	s.s = s.fallback
-	s.fellback = true
+	s.primary.Close()
 
 	return n, err
 }
 
 func (s *LimitedStore) ReadAt(p []byte, off int64) (n int, err error) {
+	if s.s == nil {
+		return 0, nil
+	}
 	return s.s.ReadAt(p, off)
 }
 
 func (s *LimitedStore) Close() error {
+	if s.s == nil {
+		return nil
+	}
 	return s.s.Close()
 }
