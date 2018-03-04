@@ -10,8 +10,9 @@ library. Together they can be used to access remote (HTTP accessible)
 ZIP archives without needing to download the whole archive file.
 
 HTTP Range Requests (see [RFC 7233](https://tools.ietf.org/html/rfc7233))
-are used to retrieve the requested byte range. Currently an error is
-returned if a remote server does not support Range Requests.
+are used to retrieve the requested byte range. There is an optional fallback
+mechanism which can be used to buffer the file locally if the server does not
+support Range Requests.
 
 When using this package with "archive/zip", it is good idea to also use
 "[github.com/avvmoto/buf-readerat](https://github.com/avvmoto/buf-readerat)"

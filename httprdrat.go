@@ -5,8 +5,7 @@
 // ZIP archives without needing to download the whole archive file.
 //
 // HTTP Range Requests (see RFC 7233) are used to retrieve the requested
-// byte range. Currently an error is returned if a remote server does not
-// support Range Requests.
+// byte range.
 package httprdrat
 
 import (
@@ -44,6 +43,8 @@ var ErrNoRange = errors.New("server does not support range requests")
 // http.DefaultClient is used. The supplied http.Request is used as a
 // prototype for requests. It is copied before making the actual request.
 // It is an error to specify any other HTTP method than "GET".
+// BackingStore can be supplied to enable fallback mechanism in case
+// the server does not support HTTP Range Requests.
 func NewHTTPReaderAt(client *http.Client, req *http.Request, bs BackingStore) (ra *HTTPReaderAt, err error) {
 	if client == nil {
 		client = http.DefaultClient
@@ -56,6 +57,8 @@ func NewHTTPReaderAt(client *http.Client, req *http.Request, bs BackingStore) (r
 		req:    req,
 		bs:     bs,
 	}
+	// Make 1 byte range request to see if they are supported or not.
+	// Also stores the metadata for later use.
 	_, err = ra.readAt(make([]byte, 1), 0, true)
 	if err != nil {
 		return nil, err
