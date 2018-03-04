@@ -35,37 +35,37 @@ func NewBackingStoreFile() *BackingStoreFile {
 	return &BackingStoreFile{}
 }
 
-func (rrat *BackingStoreFile) ReadFrom(r io.Reader) (n int64, err error) {
-	if rrat.tmpfile == nil {
-		rrat.tmpfile, err = ioutil.TempFile("", "tmpbs")
+func (bs *BackingStoreFile) ReadFrom(r io.Reader) (n int64, err error) {
+	if bs.tmpfile == nil {
+		bs.tmpfile, err = ioutil.TempFile("", "tmpbs")
 		if err != nil {
 			return 0, err
 		}
 	}
-	n, err = io.Copy(rrat.tmpfile, r)
-	rrat.size += n
+	n, err = io.Copy(bs.tmpfile, r)
+	bs.size += n
 	return n, err
 }
 
-func (rrat *BackingStoreFile) ReadAt(p []byte, off int64) (n int, err error) {
-	return rrat.tmpfile.ReadAt(p, off)
+func (bs *BackingStoreFile) ReadAt(p []byte, off int64) (n int, err error) {
+	return bs.tmpfile.ReadAt(p, off)
 }
 
-func (rrat *BackingStoreFile) Size() int64 {
-	return rrat.size
+func (bs *BackingStoreFile) Size() int64 {
+	return bs.size
 }
 
 // Close must be called when the BackingStoreFile is not used any more. It
 // deletes the temporary file.
-func (rrat *BackingStoreFile) Close() error {
-	if rrat.tmpfile == nil {
+func (bs *BackingStoreFile) Close() error {
+	if bs.tmpfile == nil {
 		return nil
 	}
-	name := rrat.tmpfile.Name()
-	err := rrat.tmpfile.Close()
+	name := bs.tmpfile.Name()
+	err := bs.tmpfile.Close()
 	err2 := os.Remove(name)
-	rrat.tmpfile = nil
-	rrat.size = 0
+	bs.tmpfile = nil
+	bs.size = 0
 
 	if err == nil && err2 != nil {
 		err = err2
@@ -74,7 +74,7 @@ func (rrat *BackingStoreFile) Close() error {
 }
 
 type BackingStoreMemory struct {
-	bytes.Buffer
+	buf bytes.Buffer
 }
 
 var _ BackingStore = (*BackingStoreMemory)(nil)
@@ -83,18 +83,22 @@ func NewBackingStoreMemory() *BackingStoreMemory {
 	return &BackingStoreMemory{}
 }
 
-func (rrat *BackingStoreMemory) ReadAt(p []byte, off int64) (n int, err error) {
-	rdr := bytes.NewReader(rrat.Bytes())
+func (bs *BackingStoreMemory) ReadFrom(r io.Reader) (n int64, err error) {
+	return bs.buf.ReadFrom(r)
+}
+
+func (bs *BackingStoreMemory) ReadAt(p []byte, off int64) (n int, err error) {
+	rdr := bytes.NewReader(bs.buf.Bytes())
 	return rdr.ReadAt(p, off)
 }
 
-func (rrat *BackingStoreMemory) Size() int64 {
-	return int64(rrat.Len())
+func (bs *BackingStoreMemory) Size() int64 {
+	return int64(bs.buf.Len())
 }
 
 // Close may be called but it is not necessary.
-func (rrat *BackingStoreMemory) Close() error {
-	rrat.Reset()
+func (bs *BackingStoreMemory) Close() error {
+	bs.buf.Reset()
 	return nil
 }
 
