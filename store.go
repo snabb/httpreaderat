@@ -36,14 +36,15 @@ func NewStoreFile() *StoreFile {
 }
 
 func (s *StoreFile) ReadFrom(r io.Reader) (n int64, err error) {
-	if s.tmpfile == nil {
-		s.tmpfile, err = ioutil.TempFile("", "gotmp")
-		if err != nil {
-			return 0, err
-		}
+	if s.tmpfile != nil {
+		s.Close()
+	}
+	s.tmpfile, err = ioutil.TempFile("", "gotmp")
+	if err != nil {
+		return 0, err
 	}
 	n, err = io.Copy(s.tmpfile, r)
-	s.size += n
+	s.size = n
 	return n, err
 }
 
@@ -84,6 +85,7 @@ func NewStoreMemory() *StoreMemory {
 }
 
 func (s *StoreMemory) ReadFrom(r io.Reader) (n int64, err error) {
+	s.buf.Reset()
 	return s.buf.ReadFrom(r)
 }
 
@@ -122,6 +124,7 @@ func NewLimitedStore(s Store, limit int64, fallback Store) *LimitedStore {
 }
 
 func (s *LimitedStore) ReadFrom(r io.Reader) (n int64, err error) {
+	// XXX
 	if s.fellback == true {
 		return s.s.ReadFrom(r)
 	}
