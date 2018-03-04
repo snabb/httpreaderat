@@ -17,7 +17,7 @@ import (
 func main() {
 	req, _ := http.NewRequest("GET", "https://dl.google.com/go/go1.10.windows-amd64.zip", nil)
 
-	bs := httprdrat.NewDefaultBackingStore()
+	bs := httprdrat.NewDefaultStore()
 	defer bs.Close()
 
 	htrdr, err := httprdrat.NewHTTPReaderAt(nil, req, bs)

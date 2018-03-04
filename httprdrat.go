@@ -25,7 +25,7 @@ type HTTPReaderAt struct {
 	req    *http.Request
 	meta   meta
 
-	bs    BackingStore
+	bs    Store
 	usebs bool
 }
 
@@ -36,16 +36,16 @@ var _ io.ReaderAt = (*HTTPReaderAt)(nil)
 var ErrValidationFailed = errors.New("validation failed")
 
 // ErrNoRange error is returned if the server does not support range
-// requests and there is no BackingStore defined for buffering the file.
+// requests and there is no Store defined for buffering the file.
 var ErrNoRange = errors.New("server does not support range requests")
 
 // New creates a new HTTPReaderAt. If nil is passed as http.Client, then
 // http.DefaultClient is used. The supplied http.Request is used as a
 // prototype for requests. It is copied before making the actual request.
 // It is an error to specify any other HTTP method than "GET".
-// BackingStore can be supplied to enable fallback mechanism in case
+// Store can be supplied to enable fallback mechanism in case
 // the server does not support HTTP Range Requests.
-func NewHTTPReaderAt(client *http.Client, req *http.Request, bs BackingStore) (ra *HTTPReaderAt, err error) {
+func NewHTTPReaderAt(client *http.Client, req *http.Request, bs Store) (ra *HTTPReaderAt, err error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
