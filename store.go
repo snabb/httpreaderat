@@ -35,37 +35,37 @@ func NewStoreFile() *StoreFile {
 	return &StoreFile{}
 }
 
-func (bs *StoreFile) ReadFrom(r io.Reader) (n int64, err error) {
-	if bs.tmpfile == nil {
-		bs.tmpfile, err = ioutil.TempFile("", "tmpbs")
+func (s *StoreFile) ReadFrom(r io.Reader) (n int64, err error) {
+	if s.tmpfile == nil {
+		s.tmpfile, err = ioutil.TempFile("", "gotmp")
 		if err != nil {
 			return 0, err
 		}
 	}
-	n, err = io.Copy(bs.tmpfile, r)
-	bs.size += n
+	n, err = io.Copy(s.tmpfile, r)
+	s.size += n
 	return n, err
 }
 
-func (bs *StoreFile) ReadAt(p []byte, off int64) (n int, err error) {
-	return bs.tmpfile.ReadAt(p, off)
+func (s *StoreFile) ReadAt(p []byte, off int64) (n int, err error) {
+	return s.tmpfile.ReadAt(p, off)
 }
 
-func (bs *StoreFile) Size() int64 {
-	return bs.size
+func (s *StoreFile) Size() int64 {
+	return s.size
 }
 
 // Close must be called when the StoreFile is not used any more. It
 // deletes the temporary file.
-func (bs *StoreFile) Close() error {
-	if bs.tmpfile == nil {
+func (s *StoreFile) Close() error {
+	if s.tmpfile == nil {
 		return nil
 	}
-	name := bs.tmpfile.Name()
-	err := bs.tmpfile.Close()
+	name := s.tmpfile.Name()
+	err := s.tmpfile.Close()
 	err2 := os.Remove(name)
-	bs.tmpfile = nil
-	bs.size = 0
+	s.tmpfile = nil
+	s.size = 0
 
 	if err == nil && err2 != nil {
 		err = err2
@@ -83,27 +83,27 @@ func NewStoreMemory() *StoreMemory {
 	return &StoreMemory{}
 }
 
-func (bs *StoreMemory) ReadFrom(r io.Reader) (n int64, err error) {
-	return bs.buf.ReadFrom(r)
+func (s *StoreMemory) ReadFrom(r io.Reader) (n int64, err error) {
+	return s.buf.ReadFrom(r)
 }
 
-func (bs *StoreMemory) ReadAt(p []byte, off int64) (n int, err error) {
-	rdr := bytes.NewReader(bs.buf.Bytes())
+func (s *StoreMemory) ReadAt(p []byte, off int64) (n int, err error) {
+	rdr := bytes.NewReader(s.buf.Bytes())
 	return rdr.ReadAt(p, off)
 }
 
-func (bs *StoreMemory) Size() int64 {
-	return int64(bs.buf.Len())
+func (s *StoreMemory) Size() int64 {
+	return int64(s.buf.Len())
 }
 
 // Close may be called but it is not necessary.
-func (bs *StoreMemory) Close() error {
-	bs.buf.Reset()
+func (s *StoreMemory) Close() error {
+	s.buf.Reset()
 	return nil
 }
 
 type LimitedStore struct {
-	bs       Store
+	s        Store
 	limit    int64
 	fallback Store
 	fellback bool
@@ -113,46 +113,45 @@ var _ Store = (*LimitedStore)(nil)
 
 var ErrStoreLimit = errors.New("backing store limit reached")
 
-func NewLimitedStore(bs Store, limit int64, fallback Store) *LimitedStore {
+func NewLimitedStore(s Store, limit int64, fallback Store) *LimitedStore {
 	return &LimitedStore{
-		bs:       bs,
+		s:        s,
 		limit:    limit,
 		fallback: fallback,
 	}
 }
 
-func (bs *LimitedStore) ReadFrom(r io.Reader) (n int64, err error) {
-	if bs.fellback == true {
-		return bs.bs.ReadFrom(r)
+func (s *LimitedStore) ReadFrom(r io.Reader) (n int64, err error) {
+	if s.fellback == true {
+		return s.s.ReadFrom(r)
 	}
 
-	lr := io.LimitReader(r, bs.limit)
+	lr := io.LimitReader(r, s.limit)
 
-	n, err = bs.bs.ReadFrom(lr)
-	if n < bs.limit {
-		bs.limit -= n
+	n, err = s.s.ReadFrom(lr)
+	if n < s.limit {
+		s.limit -= n
 		return n, err
 	}
 
-	if bs.fallback == nil {
+	if s.fallback == nil {
 		return n, ErrStoreLimit
 	}
 
-	bsrdr := io.NewSectionReader(bs.bs, 0, n)
-	n, err = bs.fallback.ReadFrom(io.MultiReader(bsrdr, r))
+	srdr := io.NewSectionReader(s.s, 0, n)
+	n, err = s.fallback.ReadFrom(io.MultiReader(srdr, r))
 
-	bs.bs.Close()
-
-	bs.bs = bs.fallback
-	bs.fellback = true
+	s.s.Close()
+	s.s = s.fallback
+	s.fellback = true
 
 	return n, err
 }
 
-func (bs *LimitedStore) ReadAt(p []byte, off int64) (n int, err error) {
-	return bs.bs.ReadAt(p, off)
+func (s *LimitedStore) ReadAt(p []byte, off int64) (n int, err error) {
+	return s.s.ReadAt(p, off)
 }
 
-func (bs *LimitedStore) Close() error {
-	return bs.bs.Close()
+func (s *LimitedStore) Close() error {
+	return s.s.Close()
 }
