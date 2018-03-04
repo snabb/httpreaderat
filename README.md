@@ -11,8 +11,8 @@ ZIP archives without needing to download the whole archive file.
 
 HTTP Range Requests (see [RFC 7233](https://tools.ietf.org/html/rfc7233))
 are used to retrieve the requested byte range. There is an optional fallback
-mechanism which can be used to buffer the file locally if the server does not
-support Range Requests.
+mechanism which can be used to download the whole file and buffer it locally
+if the server does not support Range Requests.
 
 When using this package with "archive/zip", it is good idea to also use
 "[github.com/avvmoto/buf-readerat](https://github.com/avvmoto/buf-readerat)"
