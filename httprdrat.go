@@ -19,7 +19,7 @@ import (
 )
 
 // HTTPRdrAt is io.ReaderAt implementation. New instances must be created
-// with the New() function. It is safe for concurrent use.
+// with the NewHTTPRdrAt() function. It is safe for concurrent use.
 type HTTPRdrAt struct {
 	client *http.Client
 	req    *http.Request
@@ -36,7 +36,7 @@ var ErrValidationFailed = errors.New("validation failed")
 // http.DefaultClient is used. The supplied http.Request is used as a
 // prototype for requests. It is copied before making the actual request.
 // It is an error to specify any other HTTP method than "GET".
-func New(client *http.Client, req *http.Request) (ra *HTTPRdrAt, err error) {
+func NewHTTPRdrAt(client *http.Client, req *http.Request) (ra *HTTPRdrAt, err error) {
 	if client == nil {
 		client = http.DefaultClient
 	}

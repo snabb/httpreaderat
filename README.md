@@ -40,7 +40,7 @@ import (
 func main() {
 	req, _ := http.NewRequest("GET", "https://dl.google.com/go/go1.10.windows-amd64.zip", nil)
 
-	htrdr, err := httprdrat.New(nil, req)
+	htrdr, err := httprdrat.NewHTTPRdrAt(nil, req)
 	if err != nil {
 		panic(err)
 	}
