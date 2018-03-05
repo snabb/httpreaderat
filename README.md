@@ -14,7 +14,7 @@ are used to retrieve the requested byte range. There is an optional fallback
 mechanism which can be used to download the whole file and buffer it locally
 if the server does not support Range Requests.
 
-When using this package with "archive/zip", it is good idea to also use
+When using this package with "archive/zip", it is a good idea to also use
 "[github.com/avvmoto/buf-readerat](https://github.com/avvmoto/buf-readerat)"
 which implements a buffered io.ReaderAt "proxy". It reduces the amount of
 small HTTP requests significantly. 1 MB is a good buffer size to use. See
