@@ -20,8 +20,8 @@ which implements a buffered io.ReaderAt "proxy". It reduces the amount of
 small HTTP requests significantly. 1 MB is a good buffer size to use. See
 the example below for details.
 
-If you need io.ReadSeeker (with Read() and Seek() methods), you can wrap
-HTTPReaderAt with io.SectionReader.
+If you need io.ReadSeeker (with Read() and Seek() methods) to be used for
+example with "archive/tar", you can wrap HTTPReaderAt with io.SectionReader.
 
 
 Example
