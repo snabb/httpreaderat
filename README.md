@@ -1,9 +1,9 @@
-httprdrat
-==========
+httpreaderat
+============
 
-[![GoDoc](https://godoc.org/github.com/snabb/httprdrat?status.svg)](https://godoc.org/github.com/snabb/httprdrat)
+[![GoDoc](https://godoc.org/github.com/snabb/httpreaderat?status.svg)](https://godoc.org/github.com/snabb/httpreaderat)
 
-Go package httprdrat implements io.ReaderAt that makes HTTP Range Requests.
+Go package httpreaderat implements io.ReaderAt that makes HTTP Range Requests.
 
 It can be used for example with "archive/zip" package in Go standard
 library. Together they can be used to access remote (HTTP accessible)
@@ -37,14 +37,14 @@ import (
 	"archive/zip"
 	"fmt"
 	"github.com/avvmoto/buf-readerat"
-	"github.com/snabb/httprdrat"
+	"github.com/snabb/httpreaderat"
 	"net/http"
 )
 
 func main() {
 	req, _ := http.NewRequest("GET", "https://dl.google.com/go/go1.10.windows-amd64.zip", nil)
 
-	htrdr, err := httprdrat.NewHTTPReaderAt(nil, req, nil)
+	htrdr, err := httpreaderat.New(nil, req, nil)
 	if err != nil {
 		panic(err)
 	}

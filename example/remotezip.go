@@ -8,7 +8,7 @@ package main
 import (
 	"archive/zip"
 	"github.com/avvmoto/buf-readerat"
-	"github.com/snabb/httprdrat"
+	"github.com/snabb/httpreaderat"
 	"io"
 	"net/http"
 	"os"
@@ -17,10 +17,10 @@ import (
 func main() {
 	req, _ := http.NewRequest("GET", "https://dl.google.com/go/go1.10.windows-amd64.zip", nil)
 
-	bs := httprdrat.NewDefaultStore()
+	bs := httpreaderat.NewDefaultStore()
 	defer bs.Close()
 
-	htrdr, err := httprdrat.NewHTTPReaderAt(nil, req, bs)
+	htrdr, err := httpreaderat.New(nil, req, bs)
 	if err != nil {
 		panic(err)
 	}

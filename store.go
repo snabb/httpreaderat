@@ -1,4 +1,4 @@
-package httprdrat
+package httpreaderat
 
 import (
 	"bytes"

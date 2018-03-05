@@ -1,4 +1,4 @@
-// Package httprdrat implements io.ReaderAt that makes HTTP Range Requests.
+// Package httpreaderat implements io.ReaderAt that makes HTTP Range Requests.
 //
 // It can be used for example with "archive/zip" package in Go standard
 // library. Together they can be used to access remote (HTTP accessible)
@@ -6,7 +6,7 @@
 //
 // HTTP Range Requests (see RFC 7233) are used to retrieve the requested
 // byte range.
-package httprdrat
+package httpreaderat
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ import (
 )
 
 // HTTPReaderAt is io.ReaderAt implementation that makes HTTP Range Requests.
-// New instances must be created with the NewHTTPReaderAt() function.
+// New instances must be created with the New() function.
 // It is safe for concurrent use.
 type HTTPReaderAt struct {
 	client *http.Client
@@ -45,7 +45,7 @@ var ErrNoRange = errors.New("server does not support range requests")
 // It is an error to specify any other HTTP method than "GET".
 // Store can be supplied to enable fallback mechanism in case
 // the server does not support HTTP Range Requests.
-func NewHTTPReaderAt(client *http.Client, req *http.Request, bs Store) (ra *HTTPReaderAt, err error) {
+func New(client *http.Client, req *http.Request, bs Store) (ra *HTTPReaderAt, err error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
@@ -131,7 +131,7 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 			return 0, errors.New("server suddenly stopped supporting range requests")
 		}
 		// The following code path is not thread safe.
-		// We end up here only from NewHTTPReaderAt
+		// We end up here only from New
 		// (initialize == true) and at that point concurrency
 		// is not possible.
 
