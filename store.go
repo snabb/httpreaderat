@@ -29,8 +29,8 @@ func NewDefaultStore() Store {
 			NewStoreFile(), 1024*1024*1024, nil))
 }
 
-// StoreFile takes io.Reader and provides io.ReaderAt backed by
-// a temporary file.
+// StoreFile takes data from io.Reader and provides io.ReaderAt backed by
+// a temporary file. It implements the Store interface.
 type StoreFile struct {
 	tmpfile *os.File
 	size    int64
@@ -57,6 +57,10 @@ func (s *StoreFile) ReadFrom(r io.Reader) (n int64, err error) {
 	return n, err
 }
 
+// ReadAt reads len(b) bytes from the Store starting at byte offset off. It
+// returns the number of bytes read and the error, if any. ReadAt always
+// returns a non-nil error when n < len(b). At end of file, that error is
+// io.EOF. It is safe for concurrent use.
 func (s *StoreFile) ReadAt(p []byte, off int64) (n int, err error) {
 	if s.tmpfile == nil {
 		return 0, nil
@@ -64,6 +68,7 @@ func (s *StoreFile) ReadAt(p []byte, off int64) (n int, err error) {
 	return s.tmpfile.ReadAt(p, off)
 }
 
+// Size returns the amount of data (in bytes) in the Store.
 func (s *StoreFile) Size() int64 {
 	return s.size
 }
@@ -86,8 +91,8 @@ func (s *StoreFile) Close() error {
 	return err
 }
 
-// StoreMemory takes io.Reader and provides io.ReaderAt backed by
-// a memory buffer.
+// StoreMemory takes data from io.Reader and provides io.ReaderAt backed by
+// a memory buffer. It implements the Store interface.
 type StoreMemory struct {
 	rdr *bytes.Reader
 }
@@ -108,6 +113,10 @@ func (s *StoreMemory) ReadFrom(r io.Reader) (n int64, err error) {
 	return n, err
 }
 
+// ReadAt reads len(b) bytes from the Store starting at byte offset off. It
+// returns the number of bytes read and the error, if any. ReadAt always
+// returns a non-nil error when n < len(b). At end of file, that error is
+// io.EOF. It is safe for concurrent use.
 func (s *StoreMemory) ReadAt(p []byte, off int64) (n int, err error) {
 	if s.rdr == nil {
 		return 0, nil
@@ -115,6 +124,7 @@ func (s *StoreMemory) ReadAt(p []byte, off int64) (n int, err error) {
 	return s.rdr.ReadAt(p, off)
 }
 
+// Size returns the amount of data (in bytes) in the Store.
 func (s *StoreMemory) Size() int64 {
 	if s.rdr == nil {
 		return 0
