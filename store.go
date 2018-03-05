@@ -8,16 +8,21 @@ import (
 	"os"
 )
 
-// Should we call this "ReadFromReadAtCloser"? :)
+// Store is the interface to a temporary byte storage. Calling ReadFrom
+// with io.Reader reads data to a temporary storage and allows it to be
+// read back with ReadAt. A Store must be Closed to free up the space when
+// it is no longer needed. A Store can be reused by filling it with new
+// data. ReadFrom is not safe to be called concurrently. ReadAt is safe
+// for concurrent use.
 type Store interface {
 	io.ReaderFrom
 	io.ReaderAt
 	io.Closer
 }
 
-// NewDefaultStore creates a Store with default settings. It
-// buffers 1 MB in memory and if that is exceeded, up to 1 GB to file.
-// Returned Store must be Close()d if it is no longer used.
+// NewDefaultStore creates a Store with default settings. It buffers up to
+// 1 MB in memory and if that is exceeded, up to 1 GB to a temporary file.
+// Returned Store must be Closed if it is no longer needed.
 func NewDefaultStore() Store {
 	return NewLimitedStore(
 		NewStoreMemory(), 1024*1024, NewLimitedStore(
@@ -37,7 +42,8 @@ func NewStoreFile() *StoreFile {
 	return &StoreFile{}
 }
 
-// Store the contents of r to a temporary file.
+// Read and store the contents of r to a temporary file. Previous contents
+// (if any) are erased. Can not be called concurrently.
 func (s *StoreFile) ReadFrom(r io.Reader) (n int64, err error) {
 	if s.tmpfile != nil {
 		s.Close()
@@ -92,7 +98,8 @@ func NewStoreMemory() *StoreMemory {
 	return &StoreMemory{}
 }
 
-// Store the contents of r to a memory buffer.
+// Read and store the contents of r to a memory buffer. Previous contents
+// (if any) are erased.
 func (s *StoreMemory) ReadFrom(r io.Reader) (n int64, err error) {
 	var buf bytes.Buffer
 	n, err = buf.ReadFrom(r)
@@ -115,7 +122,7 @@ func (s *StoreMemory) Size() int64 {
 	return s.rdr.Size()
 }
 
-// Close may be called but it is not necessary.
+// Close releases the memory buffer to be garbage collected.
 func (s *StoreMemory) Close() error {
 	s.rdr = nil
 	return nil
