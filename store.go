@@ -150,10 +150,11 @@ type LimitedStore struct {
 
 var _ Store = (*LimitedStore)(nil)
 
-// ErrStoreLimit error is returned when the defined LimitedStore limit is
-// reached and there is no secondary fallback store defined.
+// ErrStoreLimit error is returned when LimitedStore's limit is reached
+// and there is no secondary fallback Store defined.
 var ErrStoreLimit = errors.New("store size limit reached")
 
+// NewLimitedStore creates a new LimitedStore with the specified settings.
 func NewLimitedStore(primary Store, limit int64, secondary Store) *LimitedStore {
 	return &LimitedStore{
 		primary:   primary,
