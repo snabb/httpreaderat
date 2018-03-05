@@ -83,7 +83,7 @@ func (s *StoreFile) Close() error {
 // StoreMemory takes io.Reader and provides io.ReaderAt backed by
 // a memory buffer.
 type StoreMemory struct {
-	buf bytes.Buffer
+	rdr *bytes.Reader
 }
 
 var _ Store = (*StoreMemory)(nil)
@@ -94,22 +94,30 @@ func NewStoreMemory() *StoreMemory {
 
 // Store the contents of r to a memory buffer.
 func (s *StoreMemory) ReadFrom(r io.Reader) (n int64, err error) {
-	s.buf.Reset()
-	return s.buf.ReadFrom(r)
+	var buf bytes.Buffer
+	n, err = buf.ReadFrom(r)
+	s.rdr = bytes.NewReader(buf.Bytes())
+
+	return n, err
 }
 
 func (s *StoreMemory) ReadAt(p []byte, off int64) (n int, err error) {
-	rdr := bytes.NewReader(s.buf.Bytes())
-	return rdr.ReadAt(p, off)
+	if s.rdr == nil {
+		return 0, nil
+	}
+	return s.rdr.ReadAt(p, off)
 }
 
 func (s *StoreMemory) Size() int64 {
-	return int64(s.buf.Len())
+	if s.rdr == nil {
+		return 0
+	}
+	return s.rdr.Size()
 }
 
 // Close may be called but it is not necessary.
 func (s *StoreMemory) Close() error {
-	s.buf.Reset()
+	s.rdr = nil
 	return nil
 }
 
@@ -155,11 +163,11 @@ func (s *LimitedStore) ReadFrom(r io.Reader) (n int64, err error) {
 		return n, ErrStoreLimit
 	}
 
-	s.s = s.secondary
+	// move already received data from primary store to secondary store
 	srdr := io.NewSectionReader(s.primary, 0, n)
 	n, err = s.secondary.ReadFrom(io.MultiReader(srdr, r))
-
 	s.primary.Close()
+	s.s = s.secondary
 
 	return n, err
 }
