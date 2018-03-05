@@ -43,7 +43,7 @@ var ErrNoRange = errors.New("server does not support range requests")
 // http.DefaultClient is used. The supplied http.Request is used as a
 // prototype for requests. It is copied before making the actual request.
 // It is an error to specify any other HTTP method than "GET".
-// Store can be supplied to enable fallback mechanism in case
+// A Store can be supplied to enable fallback mechanism in case
 // the server does not support HTTP Range Requests.
 func New(client *http.Client, req *http.Request, bs Store) (ra *HTTPReaderAt, err error) {
 	if client == nil {
@@ -57,8 +57,8 @@ func New(client *http.Client, req *http.Request, bs Store) (ra *HTTPReaderAt, er
 		req:    req,
 		bs:     bs,
 	}
-	// Make 1 byte range request to see if they are supported or not.
-	// Also stores the metadata for later use.
+	// Make 1 byte Range Request to see if they are supported or not.
+	// Also stores the file metadata for later use.
 	_, err = ra.readAt(make([]byte, 1), 0, true)
 	if err != nil {
 		return nil, err
@@ -81,12 +81,14 @@ func (ra *HTTPReaderAt) Size() int64 {
 	return ra.meta.size
 }
 
-// ReadAt reads len(p) bytes into p starting at offset off in the
-// remote file. It returns the number of bytes read (0 <= n <= len(p))
-// and any error encountered.
+// ReadAt reads len(b) bytes from the remote file starting at byte offset
+// off. It returns the number of bytes read and the error, if any. ReadAt
+// always returns a non-nil error when n < len(b). At end of file, that
+// error is io.EOF. It is safe for concurrent use.
 //
-// When ReadAt returns n < len(p), it returns a non-nil error explaining
-// why more bytes were not returned.
+// It tries to notice if the file changes by tracking the size as well as
+// Content-Type, Last-Modified and ETag headers between consecutive ReadAt
+// calls. In case any change is detected, ErrValidationFailed is returned.
 func (ra *HTTPReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	return ra.readAt(p, off, false)
 }
