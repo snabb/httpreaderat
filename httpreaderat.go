@@ -105,6 +105,18 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 
 	reqFirst := off
 	reqLast := off + int64(len(p)) - 1
+
+	var returnErr error
+	if !initialize && ra.meta.size != -1 && reqLast > ra.meta.size-1 {
+		// Clamp down the requested range because some servers return
+		// "416 Range Not Satisfiable" if trying to read past the end of the file.
+		reqLast = ra.meta.size - 1
+		returnErr = io.EOF
+	}
+	if reqLast < reqFirst {
+		return 0, io.EOF
+	}
+
 	reqRange := fmt.Sprintf("bytes=%d-%d", reqFirst, reqLast)
 	req.Header.Set("Range", reqRange)
 
@@ -176,6 +188,9 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 	if (err == nil || err == io.EOF) && int64(n) != resp.ContentLength {
 		// XXX body size was different from the ContentLength
 		// header? should we do something about it? return error?
+	}
+	if err == nil && returnErr != nil {
+		err = returnErr
 	}
 	return n, err
 }
