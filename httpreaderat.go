@@ -112,9 +112,10 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 		// "416 Range Not Satisfiable" if trying to read past the end of the file.
 		reqLast = ra.meta.size - 1
 		returnErr = io.EOF
-	}
-	if reqLast < reqFirst {
-		return 0, io.EOF
+		if reqLast < reqFirst {
+			return 0, io.EOF
+		}
+		p = p[:reqLast-reqFirst+1]
 	}
 
 	reqRange := fmt.Sprintf("bytes=%d-%d", reqFirst, reqLast)
