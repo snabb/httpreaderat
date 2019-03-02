@@ -60,6 +60,8 @@ func main() {
 }
 ```
 
+See the example subdirectory for a longer example with comments.
+
 
 License
 -------
