@@ -20,6 +20,12 @@ func (ra *readerAtFixture) AfterTest(suiteName, testName string) {
 	}
 }
 
+func (ra *readerAtFixture) reader() (*HTTPReaderAt, error) {
+	req, err := http.NewRequest("GET", ra.server.URL+"/file.zip", nil)
+	ra.Nil(err)
+	return New(nil, req, nil)
+}
+
 func TestReaderAtFixture(t *testing.T) {
 	suite.Run(t, new(readerAtFixture))
 }
@@ -32,9 +38,7 @@ func (ra *readerAtFixture) TestRangeNotSupported() {
 		w.Write([]byte(`{"content":{"data": [1,2,3]}}`))
 	}))
 
-	req, err := http.NewRequest("GET", ra.server.URL+"/file.zip", nil)
-	ra.Nil(err)
-	reader, err := New(nil, req, nil)
+	reader, err := ra.reader()
 	ra.EqualError(err, "server does not support range requests")
 	ra.Nil(reader)
 }
@@ -56,9 +60,7 @@ func (ra *readerAtFixture) TestRangeSupportIntial() {
 		w.Write([]byte{17})
 	}))
 
-	req, err := http.NewRequest("GET", ra.server.URL+"/file.zip", nil)
-	ra.Nil(err)
-	reader, err := New(nil, req, nil)
+	reader, err := ra.reader()
 	ra.Nil(err)
 	ra.NotNil(reader)
 }
@@ -72,9 +74,7 @@ func (ra *readerAtFixture) TestRangeSupportIntialEmptyResponse() {
 		w.Write([]byte{})
 	}))
 
-	req, err := http.NewRequest("GET", ra.server.URL+"/file.zip", nil)
-	ra.Nil(err)
-	reader, err := New(nil, req, nil)
+	reader, err := ra.reader()
 	ra.EqualError(err, "content-length mismatch in http response")
 	ra.Nil(reader)
 }
@@ -88,9 +88,7 @@ func (ra *readerAtFixture) TestRangeSupportIntialTooMuchResponse() {
 		w.Write([]byte{17, 18, 19}) // should be 1
 	}))
 
-	req, err := http.NewRequest("GET", ra.server.URL+"/file.zip", nil)
-	ra.Nil(err)
-	reader, err := New(nil, req, nil)
+	reader, err := ra.reader()
 	ra.EqualError(err, "content-length mismatch in http response")
 	ra.Nil(reader)
 }
