@@ -1,6 +1,8 @@
 package contentrange_test
 
 import (
+	"log"
+	"net/http"
 	"testing"
 
 	"github.com/snabb/httpreaderat/pkg/contentrange"
@@ -87,4 +89,18 @@ func TestParse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ExampleParse() {
+	// fake http response
+	res := http.Response{}
+	res.Header.Add("Content-Range", "bytes 42-1233/1234")
+
+	// get header and parse
+	first, last, length, err := contentrange.Parse(res.Header.Get("Content-Range"))
+	if err != nil {
+		log.Panicf("can't parse content-range: %v", err)
+	}
+
+	log.Printf("%d, %d, %d", first, last, length)
 }

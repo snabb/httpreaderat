@@ -14,14 +14,8 @@ var (
 	ErrUnsupportedField = errors.New("unsupported field")
 )
 
+// Parse parse content of a Content-Range header.
 func Parse(str string) (first, last, length int64, err error) {
-	first, last, length = -1, -1, -1
-
-	// Content-Range: bytes 42-1233/1234
-	// Content-Range: bytes 42-1233/*
-	// Content-Range: bytes */1234
-	// (Maybe I should have used regexp here instead of Splitting... :)
-
 	split := func(r rune) bool {
 		if unicode.IsSpace(r) {
 			return true
