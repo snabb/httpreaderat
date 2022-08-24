@@ -1,4 +1,4 @@
-package httpreaderat
+package httpreaderat_test
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/snabb/httpreaderat"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -20,10 +21,10 @@ func (ra *readerAtFixture) AfterTest(suiteName, testName string) {
 	}
 }
 
-func (ra *readerAtFixture) reader() (*HTTPReaderAt, error) {
+func (ra *readerAtFixture) reader() (*httpreaderat.HTTPReaderAt, error) {
 	req, err := http.NewRequest("GET", ra.server.URL+"/file.zip", nil)
 	ra.Nil(err)
-	return New(nil, req, nil)
+	return httpreaderat.New(nil, req, nil)
 }
 
 func TestReaderAtFixture(t *testing.T) {
@@ -46,7 +47,7 @@ func (ra *readerAtFixture) TestRangeNotSupported() {
 func (ra *readerAtFixture) TestNonGetRequestMethod() {
 	req, err := http.NewRequest("POST", "http://not-valid.url/file.zip", nil)
 	ra.Nil(err)
-	reader, err := New(nil, req, nil)
+	reader, err := httpreaderat.New(nil, req, nil)
 	ra.EqualError(err, "invalid HTTP method")
 	ra.Nil(reader)
 }
