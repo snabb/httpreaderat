@@ -9,8 +9,8 @@
 package httpreaderat
 
 import (
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -123,12 +123,12 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 
 	resp, err := ra.client.Do(req)
 	if err != nil {
-		return 0, errors.Wrap(err, "http request error")
+		return 0, fmt.Errorf("http request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
-		return 0, errors.Errorf("http request error: %s", resp.Status)
+		return 0, fmt.Errorf("http request error: %s", resp.Status)
 	}
 	if initialize {
 		ra.meta = getMeta(resp)
@@ -171,10 +171,10 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 	}
 	first, last, _, err := parseContentRange(contentRange)
 	if err != nil {
-		return 0, errors.Wrap(err, "http request error")
+		return 0, fmt.Errorf("http request: %w", err)
 	}
 	if first != reqFirst || last > reqLast {
-		return 0, errors.Errorf(
+		return 0, fmt.Errorf(
 			"received different range than requested (req=%d-%d, resp=%d-%d)",
 			reqFirst, reqLast, first, last)
 	}
