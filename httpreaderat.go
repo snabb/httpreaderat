@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
-	"strings"
+
+	"github.com/snabb/httpreaderat/pkg/contentrange"
 )
 
 // HTTPReaderAt is io.ReaderAt implementation that makes HTTP Range Requests.
@@ -93,8 +93,8 @@ func (ra *HTTPReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	return ra.readAt(p, off, false)
 }
 
-func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err error) {
-	if ra.usebs == true {
+func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (int, error) {
+	if ra.usebs {
 		return ra.bs.ReadAt(p, off)
 	}
 	// fmt.Printf("readat off=%d len=%d\n", off, len(p))
@@ -118,8 +118,7 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 		p = p[:reqLast-reqFirst+1]
 	}
 
-	reqRange := fmt.Sprintf("bytes=%d-%d", reqFirst, reqLast)
-	req.Header.Set("Range", reqRange)
+	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", reqFirst, reqLast))
 
 	resp, err := ra.client.Do(req)
 	if err != nil {
@@ -130,6 +129,7 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		return 0, fmt.Errorf("http request error: %s", resp.Status)
 	}
+
 	if initialize {
 		ra.meta = getMeta(resp)
 	} else {
@@ -138,6 +138,7 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 			return 0, err
 		}
 	}
+
 	if resp.StatusCode == http.StatusOK {
 		if ra.bs == nil {
 			return 0, ErrNoRange
@@ -160,7 +161,7 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 		}
 
 		if err != nil {
-			return 0, err
+			return int(size), err
 		}
 		return ra.bs.ReadAt(p, off)
 	}
@@ -169,7 +170,7 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 	if contentRange == "" {
 		return 0, errors.New("no content-range header in partial response")
 	}
-	first, last, _, err := parseContentRange(contentRange)
+	first, last, _, err := contentrange.Parse(contentRange)
 	if err != nil {
 		return 0, fmt.Errorf("http request: %w", err)
 	}
@@ -181,11 +182,15 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 	if resp.ContentLength != last-first+1 {
 		return 0, errors.New("content-length mismatch in http response")
 	}
-	n, err = io.ReadFull(resp.Body, p)
 
-	if err == io.ErrUnexpectedEOF {
-		err = io.EOF
+	n, err := io.ReadFull(resp.Body, p)
+	if err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			err = io.EOF
+		}
+		return 0, err
 	}
+
 	if (err == nil || err == io.EOF) && int64(n) != resp.ContentLength {
 		// XXX body size was different from the ContentLength
 		// header? should we do something about it? return error?
@@ -194,50 +199,6 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (n int, err
 		err = returnErr
 	}
 	return n, err
-}
-
-var errParse = errors.New("content-range parse error")
-
-func parseContentRange(str string) (first, last, length int64, err error) {
-	first, last, length = -1, -1, -1
-
-	// Content-Range: bytes 42-1233/1234
-	// Content-Range: bytes 42-1233/*
-	// Content-Range: bytes */1234
-	// (Maybe I should have used regexp here instead of Splitting... :)
-
-	strs := strings.Split(str, " ")
-	if len(strs) != 2 || strs[0] != "bytes" {
-		return -1, -1, -1, errParse
-	}
-	strs = strings.Split(strs[1], "/")
-	if len(strs) != 2 {
-		return -1, -1, -1, errParse
-	}
-	if strs[1] != "*" {
-		length, err = strconv.ParseInt(strs[1], 10, 64)
-		if err != nil {
-			return -1, -1, -1, errParse
-		}
-	}
-	if strs[0] != "*" {
-		strs = strings.Split(strs[0], "-")
-		if len(strs) != 2 {
-			return -1, -1, -1, errParse
-		}
-		first, err = strconv.ParseInt(strs[0], 10, 64)
-		if err != nil {
-			return -1, -1, -1, errParse
-		}
-		last, err = strconv.ParseInt(strs[1], 10, 64)
-		if err != nil {
-			return -1, -1, -1, errParse
-		}
-	}
-	if first == -1 && last == -1 && length == -1 {
-		return -1, -1, -1, errParse
-	}
-	return first, last, length, nil
 }
 
 func cloneHeader(h http.Header) http.Header {
@@ -288,7 +249,7 @@ func getMeta(resp *http.Response) (meta meta) {
 	case http.StatusPartialContent:
 		contentRange := resp.Header.Get("Content-Range")
 		if contentRange != "" {
-			_, _, meta.size, _ = parseContentRange(contentRange)
+			_, _, meta.size, _ = contentrange.Parse(contentRange)
 		}
 	}
 	return meta
