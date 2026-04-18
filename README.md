@@ -2,6 +2,7 @@ httpreaderat
 ============
 
 [![Tests](https://github.com/snabb/httpreaderat/actions/workflows/test.yml/badge.svg)](https://github.com/snabb/httpreaderat/actions/workflows/test.yml)
+[![Codecov](https://codecov.io/gh/snabb/httpreaderat/graph/badge.svg)](https://codecov.io/gh/snabb/httpreaderat)
 [![Go Reference](https://pkg.go.dev/badge/github.com/snabb/httpreaderat.svg)](https://pkg.go.dev/github.com/snabb/httpreaderat)
 
 Go package httpreaderat implements io.ReaderAt that makes HTTP Range Requests.
