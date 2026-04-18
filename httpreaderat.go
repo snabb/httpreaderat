@@ -201,21 +201,11 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (int, error
 	return n, err
 }
 
-func cloneHeader(h http.Header) http.Header {
-	h2 := make(http.Header, len(h))
-	for k, vv := range h {
-		vv2 := make([]string, len(vv))
-		copy(vv2, vv)
-		h2[k] = vv2
-	}
-	return h2
-}
-
 func (ra *HTTPReaderAt) copyReq() *http.Request {
 	out := *ra.req
 	out.Body = nil
 	out.ContentLength = 0
-	out.Header = cloneHeader(ra.req.Header)
+	out.Header = ra.req.Header.Clone()
 
 	return &out
 }
