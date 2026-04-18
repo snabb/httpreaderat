@@ -2,7 +2,7 @@ package httpreaderat
 
 import (
 	"bytes"
-	"github.com/pkg/errors"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
