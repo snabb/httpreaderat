@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -48,7 +47,7 @@ func (s *StoreFile) ReadFrom(r io.Reader) (n int64, err error) {
 	if s.tmpfile != nil {
 		s.Close()
 	}
-	s.tmpfile, err = ioutil.TempFile("", "gotmp")
+	s.tmpfile, err = os.CreateTemp("", "gotmp")
 	if err != nil {
 		return 0, err
 	}

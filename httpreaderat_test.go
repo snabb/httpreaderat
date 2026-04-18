@@ -69,7 +69,7 @@ func (ra *readerAtFixture) TestRangeSupportInitial() {
 	ra.NotNil(reader)
 }
 
-func (ra *readerAtFixture) TestRangeSupportIntialEmptyResponse() {
+func (ra *readerAtFixture) TestRangeSupportInitialEmptyResponse() {
 	ra.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rnge := r.Header.Get("Range")
 		ra.Equal(rnge, "bytes=0-0")
@@ -83,7 +83,7 @@ func (ra *readerAtFixture) TestRangeSupportIntialEmptyResponse() {
 	ra.Nil(reader)
 }
 
-func (ra *readerAtFixture) TestRangeSupportIntialTooMuchResponse() {
+func (ra *readerAtFixture) TestRangeSupportInitialTooMuchResponse() {
 	ra.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rnge := r.Header.Get("Range")
 		ra.Equal(rnge, "bytes=0-0")
@@ -118,7 +118,7 @@ func (ra *readerAtFixture) TestFile() {
 	ra.Equal(http.DetectContentType(content), "text/plain; charset=utf-8")
 }
 
-func (ra *readerAtFixture) TestParralelFiles() {
+func (ra *readerAtFixture) TestParallelFiles() {
 	ra.server = httptest.NewServer(http.FileServer(http.Dir("./fixtures")))
 
 	reader, err := ra.reader()
