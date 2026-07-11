@@ -1,8 +1,6 @@
-//
 // This example outputs a single file from a remote zip file without
 // downloading the whole archive. If the server does not support HTTP Range
 // Requests, the whole file is downloaded to a backing store as a fallback.
-//
 package main
 
 import (
