@@ -70,6 +70,30 @@ func TestParse(t *testing.T) {
 			wantLength: -1,
 			wantErr:    true,
 		},
+		{
+			name:       "empty",
+			args:       args{str: ""},
+			wantFirst:  -1,
+			wantLast:   -1,
+			wantLength: -1,
+			wantErr:    true,
+		},
+		{
+			name:       "reversed range",
+			args:       args{str: "bytes 5-2/10"},
+			wantFirst:  -1,
+			wantLast:   -1,
+			wantLength: -1,
+			wantErr:    true,
+		},
+		{
+			name:       "range exceeds length",
+			args:       args{str: "bytes 0-10/10"},
+			wantFirst:  -1,
+			wantLast:   -1,
+			wantLength: -1,
+			wantErr:    true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

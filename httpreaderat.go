@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 
 	"github.com/snabb/httpreaderat/pkg/contentrange"
@@ -46,6 +47,9 @@ var ErrNoRange = errors.New("server does not support range requests")
 // A Store can be supplied to enable fallback mechanism in case
 // the server does not support HTTP Range Requests.
 func New(client *http.Client, req *http.Request, bs Store) (ra *HTTPReaderAt, err error) {
+	if req == nil {
+		return nil, errors.New("nil HTTP request")
+	}
 	if client == nil {
 		client = http.DefaultClient
 	}
@@ -87,19 +91,25 @@ func (ra *HTTPReaderAt) Size() int64 {
 // error is io.EOF. It is safe for concurrent use.
 //
 // It tries to notice if the file changes by tracking the size as well as
-// Content-Type, Last-Modified and ETag headers between consecutive ReadAt
-// calls. In case any change is detected, ErrValidationFailed is returned.
+// Last-Modified and ETag headers between consecutive ReadAt calls. In case
+// any change is detected, ErrValidationFailed is returned.
 func (ra *HTTPReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	return ra.readAt(p, off, false)
 }
 
 func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (int, error) {
+	if off < 0 {
+		return 0, errors.New("negative offset")
+	}
 	if ra.usebs {
 		return ra.bs.ReadAt(p, off)
 	}
 	// fmt.Printf("readat off=%d len=%d\n", off, len(p))
 	if len(p) == 0 {
 		return 0, nil
+	}
+	if off > math.MaxInt64-int64(len(p))+1 {
+		return 0, errors.New("requested range overflows int64")
 	}
 	req := ra.copyReq()
 
@@ -126,6 +136,13 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (int, error
 	}
 	defer resp.Body.Close()
 
+	if initialize && resp.StatusCode == http.StatusRequestedRangeNotSatisfiable {
+		first, last, size, parseErr := contentrange.Parse(resp.Header.Get("Content-Range"))
+		if parseErr == nil && first == -1 && last == -1 && size == 0 {
+			ra.meta = getMeta(resp)
+			return 0, nil
+		}
+	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
 		return 0, fmt.Errorf("http request error: %s", resp.Status)
 	}
@@ -179,7 +196,7 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (int, error
 			"received different range than requested (req=%d-%d, resp=%d-%d)",
 			reqFirst, reqLast, first, last)
 	}
-	if resp.ContentLength != last-first+1 {
+	if resp.ContentLength != -1 && resp.ContentLength != last-first+1 {
 		return 0, errors.New("content-length mismatch in http response")
 	}
 
@@ -188,13 +205,9 @@ func (ra *HTTPReaderAt) readAt(p []byte, off int64, initialize bool) (int, error
 		if errors.Is(err, io.ErrUnexpectedEOF) {
 			err = io.EOF
 		}
-		return 0, err
+		return n, err
 	}
 
-	if (err == nil || err == io.EOF) && int64(n) != resp.ContentLength {
-		// XXX body size was different from the ContentLength
-		// header? should we do something about it? return error?
-	}
 	if err == nil && returnErr != nil {
 		err = returnErr
 	}
@@ -206,6 +219,9 @@ func (ra *HTTPReaderAt) copyReq() *http.Request {
 	out.Body = nil
 	out.ContentLength = 0
 	out.Header = ra.req.Header.Clone()
+	if out.Header == nil {
+		out.Header = make(http.Header)
+	}
 
 	return &out
 }
@@ -236,7 +252,7 @@ func getMeta(resp *http.Response) (meta meta) {
 	switch resp.StatusCode {
 	case http.StatusOK:
 		meta.size = resp.ContentLength
-	case http.StatusPartialContent:
+	case http.StatusPartialContent, http.StatusRequestedRangeNotSatisfiable:
 		contentRange := resp.Header.Get("Content-Range")
 		if contentRange != "" {
 			_, _, meta.size, _ = contentrange.Parse(contentRange)

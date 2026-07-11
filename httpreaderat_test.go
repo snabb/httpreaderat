@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -55,6 +56,44 @@ func (ra *readerAtFixture) TestNonGetRequestMethod() {
 	ra.Nil(reader)
 }
 
+func (ra *readerAtFixture) TestNilRequest() {
+	reader, err := httpreaderat.New(nil, nil, nil)
+	ra.EqualError(err, "nil HTTP request")
+	ra.Nil(reader)
+}
+
+func (ra *readerAtFixture) TestRequestWithNilHeaders() {
+	ra.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Range", "bytes 0-0/1")
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write([]byte("a"))
+	}))
+
+	req, err := http.NewRequest(http.MethodGet, ra.server.URL, nil)
+	ra.NoError(err)
+	req.Header = nil
+
+	reader, err := httpreaderat.New(nil, req, nil)
+	ra.NoError(err)
+	ra.Equal(int64(1), reader.Size())
+}
+
+func (ra *readerAtFixture) TestEmptyFile() {
+	ra.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ra.Equal("bytes=0-0", r.Header.Get("Range"))
+		w.Header().Set("Content-Range", "bytes */0")
+		w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
+	}))
+
+	reader, err := ra.reader()
+	ra.NoError(err)
+	ra.Equal(int64(0), reader.Size())
+
+	n, err := reader.ReadAt(make([]byte, 1), 0)
+	ra.Equal(0, n)
+	ra.ErrorIs(err, io.EOF)
+}
+
 func (ra *readerAtFixture) TestRangeSupportInitial() {
 	ra.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rnge := r.Header.Get("Range")
@@ -100,6 +139,46 @@ func (ra *readerAtFixture) TestRangeSupportInitialTooMuchResponse() {
 	reader, err := ra.reader()
 	ra.EqualError(err, "content-length mismatch in http response")
 	ra.Nil(reader)
+}
+
+func (ra *readerAtFixture) TestChunkedPartialResponse() {
+	ra.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Range", "bytes 0-0/1")
+		w.WriteHeader(http.StatusPartialContent)
+		w.(http.Flusher).Flush()
+		w.Write([]byte{17})
+	}))
+
+	reader, err := ra.reader()
+	ra.NoError(err)
+	ra.Equal(int64(1), reader.Size())
+}
+
+func (ra *readerAtFixture) TestShortResponseReturnsPartialCount() {
+	ra.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Header.Get("Range") {
+		case "bytes=0-0":
+			w.Header().Set("Content-Range", "bytes 0-0/3")
+			w.WriteHeader(http.StatusPartialContent)
+			w.Write([]byte("a"))
+		case "bytes=1-2":
+			w.Header().Set("Content-Range", "bytes 1-2/3")
+			w.Header().Set("Content-Length", "2")
+			w.WriteHeader(http.StatusPartialContent)
+			w.Write([]byte("b"))
+		default:
+			ra.FailNow("unexpected range", r.Header.Get("Range"))
+		}
+	}))
+
+	reader, err := ra.reader()
+	ra.NoError(err)
+
+	buf := make([]byte, 2)
+	n, err := reader.ReadAt(buf, 1)
+	ra.Equal(1, n)
+	ra.ErrorIs(err, io.EOF)
+	ra.Equal("b", string(buf[:n]))
 }
 
 func (ra *readerAtFixture) TestFile() {
@@ -198,6 +277,26 @@ func (ra *readerAtFixture) TestReadAtPastEOF() {
 	n, err := reader.ReadAt(make([]byte, 1), int64(len(content)))
 	ra.Equal(0, n)
 	ra.ErrorIs(err, io.EOF)
+}
+
+func (ra *readerAtFixture) TestReadAtRejectsInvalidOffsets() {
+	ra.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ra.Equal("bytes=0-0", r.Header.Get("Range"))
+		w.Header().Set("Content-Range", "bytes 0-0/1")
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write([]byte("a"))
+	}))
+
+	reader, err := ra.reader()
+	ra.NoError(err)
+
+	n, err := reader.ReadAt(make([]byte, 1), -1)
+	ra.Equal(0, n)
+	ra.EqualError(err, "negative offset")
+
+	n, err = reader.ReadAt(make([]byte, 2), math.MaxInt64)
+	ra.Equal(0, n)
+	ra.EqualError(err, "requested range overflows int64")
 }
 
 func (ra *readerAtFixture) TestValidationFailure() {

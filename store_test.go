@@ -123,6 +123,18 @@ func TestLimitedStoreLimitReachedWithoutSecondary(t *testing.T) {
 	}
 }
 
+func TestLimitedStoreExactLimit(t *testing.T) {
+	s := NewLimitedStore(NewStoreMemory(), 5, nil)
+
+	n, err := s.ReadFrom(bytes.NewBufferString("hello"))
+	if err != nil {
+		t.Fatalf("ReadFrom() error = %v", err)
+	}
+	if n != 5 {
+		t.Fatalf("ReadFrom() n = %d, want 5", n)
+	}
+}
+
 func TestLimitedStoreFallsBackToSecondary(t *testing.T) {
 	s := NewLimitedStore(NewStoreMemory(), 4, NewStoreFile())
 

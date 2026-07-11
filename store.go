@@ -174,7 +174,20 @@ func (s *LimitedStore) ReadFrom(r io.Reader) (n int64, err error) {
 	lr := io.LimitReader(r, s.limit)
 
 	n, err = s.primary.ReadFrom(lr)
+	if err != nil {
+		return n, err
+	}
 	if n < s.limit {
+		return n, nil
+	}
+
+	// Probe one byte to distinguish an exact-size input from one that exceeds
+	// the limit without retaining more than the limit in the primary store.
+	var extra [1]byte
+	if _, err = io.ReadFull(r, extra[:]); errors.Is(err, io.EOF) {
+		return n, nil
+	}
+	if err != nil {
 		return n, err
 	}
 
@@ -184,7 +197,7 @@ func (s *LimitedStore) ReadFrom(r io.Reader) (n int64, err error) {
 
 	// move already received data from primary store to secondary store
 	srdr := io.NewSectionReader(s.primary, 0, n)
-	n, err = s.secondary.ReadFrom(io.MultiReader(srdr, r))
+	n, err = s.secondary.ReadFrom(io.MultiReader(srdr, bytes.NewReader(extra[:]), r))
 	s.primary.Close()
 	s.s = s.secondary
 
